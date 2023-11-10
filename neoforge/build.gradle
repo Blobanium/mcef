@@ -1,6 +1,5 @@
 plugins {
-    id 'net.neoforged.gradle' version '6.0.+'
-    id "org.spongepowered.mixin" version "0.7.+"
+    id 'net.neoforged.gradle.userdev' version '7.0.+'
     id 'com.matthewprenger.cursegradle' version "${cursegradle_version}"
     id 'com.github.johnrengelman.shadow' version "${shadow_version}"
     id 'maven-publish'
@@ -14,26 +13,24 @@ group = mod_packagename
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(java_version as int)
 
-minecraft {
-    mappings channel: 'official', version: minecraft_version
-
-    runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.console.level', 'debug'
-        }
-        server {
-            workingDirectory project.file('run/server')
-            property 'forge.logging.console.level', 'debug'
-            arg '--nogui'
-        }
+runs {
+    client {
+        workingDirectory project.file('run')
+        systemProperty 'forge.logging.console.level', 'debug'
+        modSource project.sourceSets.main
+    }
+    server {
+        workingDirectory project.file('run/server')
+        systemProperty 'forge.logging.console.level', 'debug'
+        programArgument '--nogui'
+        modSource project.sourceSets.main
     }
 }
 
-mixin {
-    add sourceSets.main, 'mcef.refmap.json'
-    config 'mcef.mixins.json'
-}
+//mixin {
+//    add sourceSets.main, 'mcef.refmap.json'
+//    config 'mcef.mixins.json'
+//}
 
 /*
     Add the following to ~/.gradle/gradle.properties
@@ -57,7 +54,7 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
             groupId = 'com.cinemamod'
-            artifactId = 'mcef-forge'
+            artifactId = 'mcef-neoforge'
             version = mcef_version
         }
     }
@@ -65,22 +62,16 @@ publishing {
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-configurations {
-    shadowMc.extendsFrom minecraftLibrary
-}
-
 tasks.register('prepareWorkspace') {
 
 }
 
 dependencies {
-    minecraft "net.neoforged:forge:${minecraft_version}-${forge_version}"
+    implementation "net.neoforged:neoforge:${neoforge_version}"
 
     implementation(project(':common')) {
         transitive false
     }
-
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 }
 
 tasks.register('generateJava', Copy) {
@@ -98,13 +89,12 @@ processResources {
         expand 'mod_id': mod_id,
                 'mod_version': mod_version,
                 'mod_name': mod_name,
-                'forge_loader_requirement': forge_loader_requirement,
-                'forge_requirement': forge_requirement,
+                'neoforge_loader_requirement': neoforge_loader_requirement,
+                'neoforge_requirement': neoforge_requirement,
                 'minecraft_version': minecraft_version
     }
     from("${project(':common').projectDir}/src/main/resources")
 }
-
 tasks.withType(JavaCompile).configureEach {
     source(project(':common').sourceSets.main.allSource)
     source(project(':common').sourceSets.jcef.allSource)
@@ -149,19 +139,10 @@ curseforge {
         }
     }
 }
-
-jar.finalizedBy('reobfJar')
+tasks.curseforge.dependsOn(shadowJar)
 
 shadowJar {
-    configurations = [project.configurations.shadowMc]
+    configurations = [project.configurations.shadow]
     archiveClassifier = ''
 }
-shadowJar.dependsOn('reobfJar')
-
-reobf {
-    shadowJar {}
-}
-
-artifacts {
-    archives deobfJar
-}
+jar.finalizedBy('shadowJar')
